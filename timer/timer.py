@@ -2,161 +2,167 @@
 from PySide6.QtCore import *
 from PySide6.QtGui import *
 from PySide6.QtWidgets import *
+import os
+import re
 import sys
 import time
 
-
-class MainWindow(QMainWindow):
+class Timer(QMainWindow):
     def __init__(self):
-        super(MainWindow, self).__init__()
+        super(Timer, self).__init__()
         self.setupUi(self)
-        self.tot = SubTimer()
-        self.tot.start()
-        self.br = SubTimer()
-        self.t = QTimer(self)
-        self.t.start(1000)
-        self.t.timeout.connect(self.dp)
-        self.dp_option = 'total'
+        self.epoch = int(163e7)
+        self.launch = self.temp = int(time.time())
+        self.d_epoch, self.s_epoch = divmod((self.launch - self.epoch), 86400)
+        self.br_elapsed = 0
+        self.br_started = False
 
+        self.qtimer = QTimer(self)
+        self.qtimer.start(1000)
+        self.qtimer.timeout.connect(self.display_time)
 
-    def setupUi(self, Dialog):
-        if not Dialog.objectName():
-            Dialog.setObjectName(u"Dialog")
-        Dialog.resize(600, 280)
-        self.button_total = QPushButton(Dialog)
-        self.button_total.setObjectName(u"button_total")
-        self.button_total.setGeometry(QRect(20, 40, 90, 50))
-        font = QFont()
-        font.setFamilies([u"Segoe UI"])
-        font.setPointSize(18)
-        font.setBold(False)
-        self.button_total.setFont(font)
-        self.button_total.clicked.connect(self.tb_clicked)
+        self.autosave = QTimer(self)
+        self.autosave.start(60000)
+        self.autosave.timeout.connect(self.save_log)
+        
+        self.parent_path = ''.join('/' if c == '\\' else c for c in sys.path[0])
+        self.log_name = self.parent_path + '/timer.log'
 
-        self.button_break = QPushButton(Dialog)
-        self.button_break.setObjectName(u"button_break")
-        self.button_break.setGeometry(QRect(20, 150, 90, 50))
-        self.button_break.setFont(font)
-        self.button_break.clicked.connect(self.bb_clicked)
+    def setupUi(self, Timer):
+        if not Timer.objectName():
+            Timer.setObjectName(u"Timer")
+        Timer.resize(602, 343)
+        self.centralwidget = QWidget(Timer)
+        self.centralwidget.setObjectName(u"centralwidget")
+        self.lcd_total = QLCDNumber(self.centralwidget)
+        self.lcd_total.setObjectName(u"lcd_total")
+        self.lcd_total.setGeometry(QRect(130, 10, 450, 90))
+        self.lcd_total.setDigitCount(8)
+        self.label_total = QLabel(self.centralwidget)
+        self.label_total.setObjectName(u"label_total")
+        self.label_total.setGeometry(QRect(20, 30, 90, 50))
+        font_label = QFont()
+        font_label.setPointSize(18)
+        font_label.setBold(True)
+        self.label_total.setFont(font_label)
+        self.label_total.setAlignment(Qt.AlignCenter)
+        self.lcd_study = QLCDNumber(self.centralwidget)
+        self.lcd_study.setObjectName(u"lcd_study")
+        self.lcd_study.setGeometry(QRect(130, 110, 450, 90))
+        self.lcd_study.setDigitCount(8)
+        self.lcd_break = QLCDNumber(self.centralwidget)
+        self.lcd_break.setObjectName(u"lcd_break")
+        self.lcd_break.setGeometry(QRect(130, 210, 450, 90))
+        self.lcd_break.setDigitCount(8)
+        self.label_study = QLabel(self.centralwidget)
+        self.label_study.setObjectName(u"label_study")
+        self.label_study.setGeometry(QRect(20, 130, 90, 50))
+        self.label_study.setFont(font_label)
+        self.label_study.setAlignment(Qt.AlignCenter)
+        self.label_break = QLabel(self.centralwidget)
+        self.label_break.setObjectName(u"label_break")
+        self.label_break.setGeometry(QRect(20, 230, 90, 50))
+        self.label_break.setFont(font_label)
+        self.label_break.setAlignment(Qt.AlignCenter)
+        self.btn_choose = QPushButton(self.centralwidget)
+        self.btn_choose.setObjectName(u"btn_choose")
+        self.btn_choose.setGeometry(QRect(320, 310, 75, 25))
+        font_button = QFont()
+        font_button.setPointSize(13)
+        font_button.setBold(False)
+        self.btn_choose.setFont(font_button)
+        self.btn_choose.clicked.connect(self.btn_clicked)
+        self.btn_save = QPushButton(self.centralwidget)
+        self.btn_save.setObjectName(u"btn_save")
+        self.btn_save.setGeometry(QRect(410, 310, 75, 25))
+        self.btn_save.clicked.connect(self.save_log)
+        self.btn_save.setFont(font_button)
+        self.btn_load = QPushButton(self.centralwidget)
+        self.btn_load.setObjectName(u"btn_load")
+        self.btn_load.setGeometry(QRect(500, 310, 75, 25))
+        self.btn_load.clicked.connect(self.load_log)
+        self.btn_load.setFont(font_button)
+        Timer.setCentralWidget(self.centralwidget)
 
-        self.dp_total = QLCDNumber(Dialog)
-        self.dp_total.setObjectName(u"dp_total")
-        self.dp_total.setGeometry(QRect(130, 20, 450, 90))
-        self.dp_total.setDigitCount(8)
-        self.dp_break = QLCDNumber(Dialog)
-        self.dp_break.setObjectName(u"dp_break")
-        self.dp_break.setGeometry(QRect(130, 130, 450, 90))
-        self.dp_break.setDigitCount(8)
-        self.button_save = QPushButton(Dialog)
-        self.button_save.setObjectName(u"save")
-        self.button_save.setGeometry(QRect(500, 240, 75, 25))
-        font1 = QFont()
-        font1.setFamilies([u"Segoe UI"])
-        font1.setPointSize(10)
-        font1.setBold(False)
-        self.button_save.setFont(font1)
+        Timer.setWindowTitle(QCoreApplication.translate("Timer", u"Study Timer 0.1.0", None))
+        self.label_total.setText(QCoreApplication.translate("Timer", u"Total", None))
+        self.label_study.setText(QCoreApplication.translate("Timer", u"Study", None))
+        self.label_break.setText(QCoreApplication.translate("Timer", u"Break", None))
+        self.btn_choose.setText(QCoreApplication.translate("Timer", u"Break", None))
+        self.btn_save.setText(QCoreApplication.translate("Timer", u"Save", None))
+        self.btn_load.setText(QCoreApplication.translate("Timer", u"Load", None))
 
-        self.retranslateUi(Dialog)
+        QMetaObject.connectSlotsByName(Timer)
 
-        QMetaObject.connectSlotsByName(Dialog)
     
-    def retranslateUi(self, Dialog):
-        Dialog.setWindowTitle(QCoreApplication.translate("Dialog", u"Timer", None))
-        self.button_total.setText(QCoreApplication.translate("Dialog", u"Total", None))
-        self.button_break.setText(QCoreApplication.translate("Dialog", u"Break", None))
-        self.button_save.setText(QCoreApplication.translate("Dialog", u"Save", None))
+    def start(self):
+        self.br_started = True
+        self.temp = int(time.time())
+
+    def stop(self):
+        self.br_started = False
+        self.br_elapsed += int(time.time()) - self.temp
+
+    def get_elapsed(self):
+        if self.br_started:
+           return self.br_elapsed + int(time.time()) - self.temp
+        return self.br_elapsed
 
     def converter(self, integer_time):
         m, s = divmod(integer_time, 60)
         h, m = divmod(m, 60)
         return f'{h:02}:{m:02}:{s:02}'
 
-    def dp(self):
-        if self.dp_option == 'total':
-            tos = self.tot.get_elapsed()
-        elif self.dp_option == 'study':
-            tos = self.tot.get_elapsed() - self.br.get_elapsed()
-        self.dp_total.display(self.converter(tos))
-        self.dp_break.display(self.converter(self.br.get_elapsed()))
+    def display_time(self):
+        tot = int(time.time()) - self.launch
+        br = self.get_elapsed()
+        st = tot - br
+        self.lcd_total.display(self.converter(tot))
+        self.lcd_study.display(self.converter(st))
+        self.lcd_break.display(self.converter(br))
 
-    def start_break(self):
-        self.dp_break.start()
-
-    def bb_clicked(self):
+    def btn_clicked(self):
         if self.sender().text() == 'Break':
-            self.br.start()
+            self.start()
             self.sender().setText('Study')
         elif self.sender().text() == 'Study':
-            self.br.stop()
+            self.stop()
             self.sender().setText('Break')
+        pass
 
-    def tb_clicked(self):
-        if self.sender().text() == 'Total':
-            self.dp_option = 'study'
-            self.sender().setText('Study')
-        elif self.sender().text() == 'Study':
-            self.dp_option = 'total'
-            self.sender().setText('Total')
+    def save_log(self):
+        with open(self.log_name, 'r') as f:
+            tmp = f.readlines()
+            if len(tmp) < self.d_epoch:
+                if not len(tmp):
+                    tmp += ['\n']
+                elif not tmp[-1].endswith('\n'):
+                    tmp[-1] += '\n'
+            tmp += ['\n'] * (self.d_epoch - len(tmp) + (len(tmp) == 0))
+        
+        with open(self.log_name, 'w') as f:
+            tmp[self.d_epoch - 1] = (f'D+{self.d_epoch:04}: '
+                + f'Total: {int(time.time()) - self.launch}, '
+                + f'Study: {int(time.time()) - self.launch - self.get_elapsed()}, '
+                + f'Break: {self.get_elapsed()}')
+            f.writelines(tmp[:self.d_epoch])
 
-
-class Timer:
-    def __init__(self):
-        self.epoch = int(163e7)
-        self.launch = int(time.time())
-        self.d_epoch, self.s_epoch = divmod((self.launch - self.epoch), 86400)
-        self.elapsed = 0
-
-    def get_launch(self):
-        return self.launch
-
-    def get_epoch_day(self):
-        return self.d_epoch
-
-    def get_epoch_second(self):
-        return self.s_epoch
-
-    def get_elapsed(self):
-        self.elapsed = int(time.time()) - self.launch
-        return self.elapsed
-    
-    def get_everything(self):
-        self.get_elapsed()
-        return self.__dict__
+    def load_log(self):
+        with open(self.log_name, 'r') as f:
+            tmp = f.readlines()
+            if len(tmp) < self.d_epoch or int(tmp[self.d_epoch - 1][2:6]) != self.d_epoch:
+                print('Nothing to load')
+            else:
+                data = tmp[self.d_epoch - 1]
+                search = re.findall("[\d]+", data)
+                if len(search) == 4 and all(1 for i in search if type(i) == int):
+                    self.launch = int(time.time()) - int(search[1])
+                    self.br_elapsed = int(search[3])
 
 
-class SubTimer(Timer):
-    def __init__(self):
-        Timer.__init__(self)
-        self.d, self.s = divmod(self.launch, 86400)
-        self.temp = self.launch
-        self.started = False
-
-    def get_day(self):
-        return self.d
-
-    def get_second(self):
-        return self.s
-    
-    def start(self):
-        self.started = True
-        self.temp = int(time.time())
-
-    def stop(self):
-        self.started = False
-        self.elapsed += int(time.time()) - self.temp
-
-    def get_elapsed(self):
-        if not self.elapsed and self.started:
-            return int(time.time()) - self.temp
-        elif self.started:
-            return self.elapsed + int(time.time()) - self.temp
-        return self.elapsed
-
-
-def main():    
-    launch = Timer()
+def main():
     app = QApplication()
-    ui = MainWindow()
+    ui = Timer()
     ui.show()
     sys.exit(app.exec())
 
