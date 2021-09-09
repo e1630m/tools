@@ -110,55 +110,43 @@ def num_commits(graph: list[int]) -> list[int]:
     return [graph[y][x] for x in range(53) for y in range(7)][start:end]
 
 
-def repo_creator(repo_name='git-greener', option='priv') -> str:
-    # TODO 
-    # Create (private) repo for those dummy commits
+def commit(y: int, cmts: list[int], limit: int, fname: str, c: str) -> None:
     '''
-        Create a (private) repo on GitHub and returns local path of the repo
+        Make automated commits and returns None
 
         Args:
-            repo_name (str): (optional) name of the repo
-            option (str): (optional) 'pub' for public repo,
-                                     'priv' for private repo (default) 
+            y (int): the year you want to make automated commits (YYYY)
+            cmts (list[int]): a list you got from num_commits which contains
+                a number of commits from Jan 1 to Dec 31 in the given year
+            limit (int): maximum daily commit
+            fname (str): the name of dummy file you want to make commit
+            c (str): commit comment
+
     '''
-    pass
-    username = ''   # EDIT THIS (Your GitHub username)
-    ghp = ''        # EDIT THIS (Your GitHub PAT, which has repo access)
-    base_path = ''  # EDIT THIS (/path/to/parent/dir/of/your/repo)
-    return base_path + '/' + repo_name
-
-
-def commit(year: int, cmt_lst: list[int], daily_cmt: int, path: str) -> None:
-    # TODO
-    # Generate dummy file / content and commit set number of times (commits_to_do) for each day 
-    # command: git commit --date “Fri Jan 15 00:01 2021 +0000"
-    pass
-    subprocess.run('cd ' + path)
-    subprocess.run('touch dummy.txt')
-    pre = 'git commit --date "'
-    post = '" -S -m "Automated Commit"'
-    t = epoch_converter(year, 1, 1)
-    for day in cmt_lst:
-        num_commit_today = day
-        if day > 2:
-            num_commit_today = daily_cmt - random.randint(0, daily_cmt // 10)
-        tmp = t
-        for _ in range(num_commit_today):
-            subprocess.run('echo 1 >> dummy.txt')
-            subprocess.run('git add dummy.txt')
-            tmp += random.randint(1, 86399 // num_commit_today)
-            cmd = pre + str(tmp) + post
-            subprocess.run(cmd)
-        t += 86400
+    c = '"' + c + '"'
+    epoch_day = epoch_converter(y, 1, 1)
+    subprocess.run(f'touch {fname}')
+    for cmt_today in cmts:
+        rand_num = limit - random.randint(0, limit // 10)
+        randomized_time = epoch_day
+        for _ in range(rand_num if cmt_today > 2 else cmt_today):
+            with open(fname, 'a+') as f:
+                f.write('1')
+            subprocess.run(f'git add {fname}')
+            randomized_time += random.randint(1, 86399 // cmt_today)
+            commit_cmd = f'git commit --date {randomized_time} -S -m {c}'
+            subprocess.run(commit_cmd)
+        epoch_day += 86400
 
 
 def main():
-    year = 2021
-    word = 'e1630m'
-    daily_commits = 50
-    cmt_lst = num_commits(draw_on_graph(year, word, daily_commits))
-  #  print(num_days(year), len(commmits_to_do), commmits_to_do[0], commmits_to_do[-1])
-    print(epoch_converter(2021, 9, 7))
+    year = 2020
+    draw = 'e1630m'
+    max_daily_commits = 50
+    dummy_file_name = 'dummy.txt'
+    comment = 'Automated Commit'
+    cmt_lst = num_commits(draw_on_graph(year, draw, max_daily_commits))
+    commit(year, cmt_lst, 10, dummy_file_name, comment)
 
 
 if __name__ == '__main__':
