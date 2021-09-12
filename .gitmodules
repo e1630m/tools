@@ -1,3 +1,6 @@
 [submodule "green-hub"]
 	path = green-hub
 	url = git@github.com:e1630m/green-hub
+[submodule "study-timer"]
+	path = study-timer
+	url = git@github.com:e1630m/study-timer
