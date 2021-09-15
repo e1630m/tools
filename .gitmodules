@@ -4,3 +4,6 @@
 [submodule "study-timer"]
 	path = study-timer
 	url = git@github.com:e1630m/study-timer
+[submodule "blind-test"]
+	path = blind-test
+	url = git@github.com:e1630m/blind-test
