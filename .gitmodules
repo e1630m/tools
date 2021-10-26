@@ -7,3 +7,6 @@
 [submodule "blind-test"]
 	path = blind-test
 	url = git@github.com:e1630m/blind-test
+[submodule "blackjack"]
+	path = blackjack
+	url = git@github.com:e1630m/blackjack
